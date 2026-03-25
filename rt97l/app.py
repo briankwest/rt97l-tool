@@ -7,7 +7,7 @@ from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Header
+from textual.widgets import Header
 
 from rt97l.data_model import RepeaterConfig
 from rt97l.screens.channel_table import ChannelTableScreen
@@ -70,13 +70,7 @@ class RT97LApp(App):
     """
 
     BINDINGS = [
-        Binding("ctrl+q", "request_quit", "Quit", priority=True),
-        Binding("ctrl+r", "read_device", "Read", priority=True),
-        Binding("ctrl+w", "write_device", "Write", priority=True),
-        Binding("ctrl+s", "save_file", "Save", priority=True),
-        Binding("ctrl+o", "open_file", "Open", priority=True),
-        Binding("ctrl+g", "edit_globals", "Settings", priority=True),
-        Binding("ctrl+p", "select_port", "Port", priority=True),
+        Binding("ctrl+q", "request_quit", "Quit"),
     ]
 
     def __init__(self):
@@ -89,7 +83,6 @@ class RT97LApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Footer()
 
     def on_mount(self) -> None:
         self.push_screen(ChannelTableScreen())
@@ -112,8 +105,6 @@ class RT97LApp(App):
             parts.append(self.port_path)
         self.sub_title = " | ".join(parts) if parts else "v0.1.0"
 
-    # -- Actions --
-
     def action_request_quit(self) -> None:
         if self.transfer_in_progress:
             self.notify("Cannot quit during transfer!", severity="warning")
@@ -130,80 +121,3 @@ class RT97LApp(App):
     def _on_quit_confirm(self, confirmed: bool) -> None:
         if confirmed:
             self.exit()
-
-    def action_read_device(self) -> None:
-        if self.transfer_in_progress:
-            return
-        if self.dirty:
-            from rt97l.screens.com_port import ConfirmDialog
-            self.push_screen(
-                ConfirmDialog("Unsaved changes will be lost. Read from device?"),
-                callback=self._on_read_confirm,
-            )
-        else:
-            self._do_read()
-
-    def _on_read_confirm(self, confirmed: bool) -> None:
-        if confirmed:
-            self._do_read()
-
-    def _do_read(self) -> None:
-        from rt97l.screens.com_port import ReadWriteScreen
-        self.push_screen(ReadWriteScreen(mode="read"), callback=self._on_transfer_done)
-        self.transfer_in_progress = True
-
-    def action_write_device(self) -> None:
-        if self.transfer_in_progress:
-            return
-        from rt97l.screens.com_port import ReadWriteScreen
-        self.push_screen(ReadWriteScreen(mode="write"), callback=self._on_transfer_done)
-        self.transfer_in_progress = True
-
-    def _on_transfer_done(self, result: bool | None) -> None:
-        self.transfer_in_progress = False
-        # Refresh channel table if it's the current screen
-        screen = self.screen
-        if hasattr(screen, "_refresh_table"):
-            screen._refresh_table()
-            screen._update_status()
-
-    def action_save_file(self) -> None:
-        from rt97l.screens.com_port import SaveDialog
-        self.push_screen(SaveDialog())
-
-    def action_open_file(self) -> None:
-        if self.dirty:
-            from rt97l.screens.com_port import ConfirmDialog
-            self.push_screen(
-                ConfirmDialog("Unsaved changes will be lost. Open a file?"),
-                callback=self._on_open_confirm,
-            )
-        else:
-            self._do_open()
-
-    def _on_open_confirm(self, confirmed: bool) -> None:
-        if confirmed:
-            self._do_open()
-
-    def _do_open(self) -> None:
-        from rt97l.screens.com_port import OpenDialog
-        self.push_screen(OpenDialog(), callback=self._on_open_done)
-
-    def _on_open_done(self, result: bool | None) -> None:
-        screen = self.screen
-        if hasattr(screen, "_refresh_table"):
-            screen._refresh_table()
-            screen._update_status()
-
-    def action_edit_globals(self) -> None:
-        from rt97l.screens.global_settings import GlobalSettingsScreen
-        self.push_screen(GlobalSettingsScreen())
-
-    def action_select_port(self) -> None:
-        from rt97l.screens.com_port import PortSelectScreen
-        self.push_screen(PortSelectScreen(), callback=self._on_port_selected)
-
-    def _on_port_selected(self, result: str | None) -> None:
-        screen = self.screen
-        if hasattr(screen, "_update_status"):
-            screen._update_status()
